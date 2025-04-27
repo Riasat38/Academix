@@ -30,12 +30,12 @@ func main() {
 	fmt.Println("Migration completed successfully!")
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8080", "<the base url from frontend>"}, // Specify allowed origins
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},                          // HTTP methods allowed
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},               // Headers allowed
-		ExposeHeaders:    []string{"Content-Length"},                                        // Headers exposed to frontend
-		AllowCredentials: true,                                                              // Allow cookies/session credentials
-		MaxAge:           12 * time.Hour,                                                    // Cache preflight requests for 12 hours
+		AllowOrigins:     []string{"*"},                                       // Specify allowed origins
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},            // HTTP methods allowed
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"}, // Headers allowed
+		ExposeHeaders:    []string{"Content-Length"},                          // Headers exposed to frontend
+		AllowCredentials: true,                                                // Allow cookies/session credentials
+		MaxAge:           12 * time.Hour,                                      // Cache preflight requests for 12 hours
 	}))
 
 	router.GET("/", func(c *gin.Context) {
