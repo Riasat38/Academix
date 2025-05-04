@@ -4,8 +4,10 @@ import (
 	"academix/auth"
 	database "academix/config"
 	"academix/models"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"log"
 	"net/http"
 )
 
@@ -19,6 +21,15 @@ func ShowUser(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"profile": user})
+}
+func getUser(username string) models.UserModel {
+	var user models.UserModel
+	err := database.DB.Where("username = ?", username).First(&user).Error
+
+	if err != nil {
+		log.Fatal(fmt.Sprintf("User '%s' not found: %v", username, err))
+	}
+	return user
 }
 
 func SignUP(c *gin.Context) {
@@ -51,7 +62,7 @@ func SignUP(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 			return
 		} else {
-			token, err := auth.GenerateToken(newUser.Username)
+			token, err := auth.GenerateToken(newUser.Username, newUser.Role)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 				return
@@ -84,7 +95,7 @@ func LogIn(c *gin.Context) {
 		return
 	}
 
-	token, err := auth.GenerateToken(user.Username)
+	token, err := auth.GenerateToken(user.Username, user.Role)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})

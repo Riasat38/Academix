@@ -17,12 +17,10 @@ func AuthenticateMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Remove "Bearer " prefix if present
 		if strings.HasPrefix(tokenString, "Bearer ") {
 			tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 		}
 
-		// Verify the token
 		token, claims, err := auth.VerifyToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
@@ -30,15 +28,14 @@ func AuthenticateMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Ensure token is valid
 		if !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
 		}
 
-		// Set user data in context for next handlers
 		c.Set("username", claims["username"].(string))
-		c.Next() // Proceed to the next middleware or route handler
+		c.Set("role", claims["role"].(string))
+		c.Next()
 	}
 }
