@@ -50,8 +50,15 @@ func main() {
 	{ //below will be the protected routes
 		authorized.POST("/logout", controllers.Logout)
 		authorized.GET("/profile", controllers.ShowUser)
-		//authorized.POST("/course", controllers.PublishCourse)
-		authorized.GET("/course", controllers.GetCourses)
+
+		//Course Routesac
+		authorized.GET("/course", controllers.ViewAllCourses)
+		authorized.GET("/own-course", controllers.ViewOwnCourses)
+		authorized.GET("/course/:courseCode", controllers.ViewCourse)
+
+		authorized.POST("/enroll-course/:courseCode", controllers.EnrollCourse)
+		authorized.POST("/create-course", controllers.CreateCourse)
+		authorized.POST("/assign-user/:courseCode", controllers.AssignUser)
 
 	}
 
