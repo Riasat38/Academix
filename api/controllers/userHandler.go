@@ -13,18 +13,19 @@ import (
 
 func ShowUser(c *gin.Context) {
 
-	username, _ := c.Get("username")
+	username := c.GetString("username")
 
 	var user models.UserModel
-	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := database.DB.Omit("Password").Where("username = ?", username).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"profile": user})
 }
+
 func getUser(username string) models.UserModel {
 	var user models.UserModel
-	err := database.DB.Where("username = ?", username).First(&user).Error
+	err := database.DB.Omit("Password").Where("username = ?", username).First(&user).Error
 
 	if err != nil {
 		log.Fatal(fmt.Sprintf("User '%s' not found: %v", username, err))

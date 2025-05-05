@@ -22,7 +22,7 @@ func main() {
 	}
 	fmt.Println("DB instance:", database.DB)
 	//database.DB.Debug().AutoMigrate(&models.UserModel{}) 	//used when there were issues
-	err := database.DB.AutoMigrate(&models.UserModel{})
+	err := database.DB.AutoMigrate(&models.UserModel{}, &models.CourseModel{}, &models.Assignment{})
 	if err != nil {
 		return
 	}
@@ -51,14 +51,18 @@ func main() {
 		authorized.POST("/logout", controllers.Logout)
 		authorized.GET("/profile", controllers.ShowUser)
 
-		//Course Routesac
-		authorized.GET("/course", controllers.ViewAllCourses)
+		//Course Routes
+		authorized.GET("/course", controllers.ViewAllCourses) //browse
 		authorized.GET("/own-course", controllers.ViewOwnCourses)
-		authorized.GET("/course/:courseCode", controllers.ViewCourse)
+		authorized.GET("/course/:courseCode", controllers.ViewCourse) //viewing a course with details including instructor assignments and everything
 
 		authorized.POST("/enroll-course/:courseCode", controllers.EnrollCourse)
 		authorized.POST("/create-course", controllers.CreateCourse)
-		authorized.POST("/assign-user/:courseCode", controllers.AssignUser)
+		authorized.POST("/assign-user/:courseCode", controllers.AssignUser) //admin: assigning teacher or
+
+		//Assignment
+		authorized.POST("/:courseCode/assignment", controllers.CreateAssignment)
+		authorized.GET("/:courseCode/assignment", controllers.GetAssignments) //get all assignments of a course
 
 	}
 

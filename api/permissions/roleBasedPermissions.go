@@ -10,17 +10,20 @@ func init() {
 	*/
 	permissions = map[string]map[string][]string{
 		"student": {
-			"course":  {"viewAll", "viewOwn", "enroll", "view"},
-			"profile": {"view", "edit"},
+			"course":     {"viewAll", "viewOwn", "enroll", "view"},
+			"profile":    {"view", "edit"},
+			"assignment": {"view"},
 		},
 		"teacher": {
-			"course":  {"viewAll", "viewOwn", "update", "view"},
-			"profile": {"view", "edit"},
+			"course":     {"viewAll", "viewOwn", "update", "view"},
+			"profile":    {"view", "edit"},
+			"assignment": {"view", "create", "edit", "post"},
 		},
 		"admin": {
-			"course":  {"viewAll", "viewOwn", "modify", "create", "delete", "addUser", "view"},
-			"profile": {"view", "edit", "delete"},
-			"user":    {"view", "edit", "delete"},
+			"course":     {"viewAll", "viewOwn", "modify", "create", "delete", "addUser", "view"},
+			"profile":    {"view", "edit", "delete"},
+			"user":       {"view", "edit", "delete"},
+			"assignment": {"view", "create", "edit", "post"},
 		},
 	}
 }

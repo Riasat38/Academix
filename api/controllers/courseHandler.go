@@ -5,21 +5,45 @@ import (
 	"academix/models"
 	"academix/permissions"
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 )
 
+func GetStudentCourses(username string) []models.CourseModel {
+	// Assuming authentication provides username
+	var user models.UserModel
+
+	// Find the student and preload their enrolled courses
+	if err := database.DB.Preload("Courses").Where("username = ?", username).First(&user).Error; err != nil {
+		log.Fatal(err)
+	}
+
+	return user.Courses
+}
+func GetInstructorCourses(username string) []models.CourseModel {
+	// Assuming authentication provides username
+	var user models.UserModel
+
+	// Find the student and preload their enrolled courses
+	if err := database.DB.Preload("TaughtCourses").Where("username = ?", username).First(&user).Error; err != nil {
+		log.Fatal(err)
+	}
+
+	return user.Courses
+}
+
 func ViewAllCourses(c *gin.Context) { //view all courses
 
-	role, _ := c.Get("role")
+	role := c.GetString("role")
 
-	if !permissions.ValidatePermission(role.(string), "course", "viewAll") {
+	if !permissions.ValidatePermission(role, "course", "viewAll") {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
 		return
 	}
 
 	var courses []models.CourseModel
 
-	if err := database.DB.Find(&courses).Error; err != nil {
+	if err := database.DB.Preload("Instructors").Find(&courses).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "message": "Error Fetching Data"})
 		return
 	}
@@ -27,17 +51,17 @@ func ViewAllCourses(c *gin.Context) { //view all courses
 }
 
 func ViewOwnCourses(c *gin.Context) {
-	role, _ := c.Get("role")
-	username, _ := c.Get("username")
+	role := c.GetString("role")
+	username := c.GetString("username")
 
-	if !permissions.ValidatePermission(role.(string), "course", "viewOwn") {
+	if !permissions.ValidatePermission(role, "course", "viewOwn") {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
 		return
 	}
 
-	user := getUser(username.(string))
+	user := getUser(username)
 
-	var courses []string
+	var courses []models.CourseModel
 	/*	alternative
 		database.DB.Where("username = ?", user.Username).Find(&courses)
 	*/
@@ -60,21 +84,16 @@ func EnrollCourse(c *gin.Context) {
 
 	var course models.CourseModel
 
-	role, _ := c.Get("role")
-	roleStr, ok := role.(string)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid role format"})
-		return
-	}
+	role := c.GetString("role")
 
-	if !permissions.ValidatePermission(roleStr, "course", "enroll") {
+	if !permissions.ValidatePermission(role, "course", "enroll") {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
 		return
 	}
 
 	//finding user
-	username, _ := c.Get("username")
-	user := getUser(username.(string))
+	username := c.GetString("username")
+	user := getUser(username)
 	//finding course
 	if err := database.DB.Where("Code = ?", courseCode).First(&course).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
@@ -107,18 +126,9 @@ func EnrollCourse(c *gin.Context) {
 
 }
 func CreateCourse(c *gin.Context) {
-	role, exists := c.Get("role")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Role not found"})
-		return
-	}
-	roleStr, ok := role.(string)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid role format"})
-		return
-	}
+	role := c.GetString("role")
 
-	if !permissions.ValidatePermission(roleStr, "course", "create") {
+	if !permissions.ValidatePermission(role, "course", "create") {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
 		return
 	}
@@ -144,13 +154,9 @@ func CreateCourse(c *gin.Context) {
 
 func AssignUser(c *gin.Context) {
 
-	role, _ := c.Get("role")
-	roleStr, ok := role.(string)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid role format"})
-		return
-	}
-	if !permissions.ValidatePermission(roleStr, "course", "addUser") {
+	role := c.GetString("role")
+
+	if !permissions.ValidatePermission(role, "course", "addUser") {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
 		return
 	}
@@ -202,20 +208,49 @@ func AssignUser(c *gin.Context) {
 
 func ViewCourse(c *gin.Context) {
 
-	role, _ := c.Get("role")
-	roleStr, ok := role.(string)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid role format"})
-	}
-	if !permissions.ValidatePermission(roleStr, "course", "view") {
+	role := c.GetString("role")
+
+	if !permissions.ValidatePermission(role, "course", "view") {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
 		return
 	}
 	courseCode := c.Param("courseCode")
-	var course models.CourseModel
-	if err := database.DB.Preload("Students").Preload("Instructors").Where("Code = ?", courseCode).First(&course).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
+	user := getUser(c.GetString("username"))
+	var courses []models.CourseModel
+
+	if user.Role == "student" {
+		if err := database.DB.Model(&user).Preload("Instructors").
+			Preload("Assignments").
+			Association("Courses").
+			Find(&courses).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No courses available"})
+			return
+		}
+		for _, course := range courses {
+			if course.Code == courseCode {
+				c.JSON(http.StatusOK, gin.H{"course": course})
+				return
+			}
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not enrolled in the course"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Course viewed", "course": course})
+
+	if user.Role == "teacher" {
+		if err := database.DB.Model(&user).Preload("Students").
+			Preload("Assignments").
+			Association("TaughtCourses").
+			Find(&courses).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No courses available"})
+			return
+		}
+		for _, course := range courses {
+			if course.Code == courseCode {
+				c.JSON(http.StatusOK, gin.H{"course": course})
+				return
+			}
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not Teaching this course"})
+		return
+	}
 }
