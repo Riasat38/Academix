@@ -5,7 +5,6 @@ import (
 	"academix/models"
 	"academix/permissions"
 	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
 )
 
@@ -14,22 +13,25 @@ func GetStudentCourses(username string) []models.CourseModel {
 	var user models.UserModel
 
 	// Find the student and preload their enrolled courses
-	if err := database.DB.Preload("Courses").Where("username = ?", username).First(&user).Error; err != nil {
-		log.Fatal(err)
+	if err := database.DB.Model(&user).Preload("Courses").
+		Where("username = ?", username).Find(&user).Error; err != nil {
+		return []models.CourseModel{}
 	}
 
 	return user.Courses
 }
+
 func GetInstructorCourses(username string) []models.CourseModel {
 	// Assuming authentication provides username
 	var user models.UserModel
 
-	// Find the student and preload their enrolled courses
-	if err := database.DB.Preload("TaughtCourses").Where("username = ?", username).First(&user).Error; err != nil {
-		log.Fatal(err)
+	// Find the instructor and preload their taught courses
+	if err := database.DB.Model(&user).Preload("TaughtCourses").
+		Where("username = ?", username).Find(&user).Error; err != nil {
+		return []models.CourseModel{}
 	}
 
-	return user.Courses
+	return user.TaughtCourses
 }
 
 func ViewAllCourses(c *gin.Context) { //view all courses
@@ -58,24 +60,17 @@ func ViewOwnCourses(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
 		return
 	}
-
-	user := getUser(username)
-
 	var courses []models.CourseModel
 	/*	alternative
 		database.DB.Where("username = ?", user.Username).Find(&courses)
 	*/
 	if role == "student" {
-		if err := database.DB.Model(&user).Preload("Instructors").Association("Courses").Find(&courses); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error Fetching CourseList"})
-			return
-		}
-	} else {
-		if err := database.DB.Model(&user).Preload("Students").Association("TaughtCourses").Find(&courses); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error Fetching CourseList"})
-			return
-		}
+		courses = GetStudentCourses(username)
 	}
+	if role == "teacher" {
+		courses = GetInstructorCourses(username)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"courses": courses})
 }
 
@@ -95,23 +90,18 @@ func EnrollCourse(c *gin.Context) {
 	username := c.GetString("username")
 	user := getUser(username)
 	//finding course
+
 	if err := database.DB.Where("Code = ?", courseCode).First(&course).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
 		return
 	}
-	var enrolledCourses []models.CourseModel
-	err := database.DB.Model(&user).Association("Courses").Find(&enrolledCourses)
-	if err != nil {
-		return
-	}
-
-	for _, course := range enrolledCourses {
+	courses := GetStudentCourses(username)
+	for _, course := range courses {
 		if course.Code == courseCode {
-			c.JSON(http.StatusConflict, gin.H{"error": "Student is already enrolled"})
+			c.JSON(http.StatusConflict, gin.H{"error": "Already enrolled in the course"})
 			return
 		}
 	}
-
 	//adding student to the course
 	if err := database.DB.Model(&course).Association("Students").Append(&user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Not added in course"})
@@ -175,6 +165,7 @@ func AssignUser(c *gin.Context) {
 
 	courseCode := c.Param("courseCode")
 	var course models.CourseModel
+
 	if err := database.DB.Preload("Students").Preload("Instructors").Where("Code = ?", courseCode).First(&course).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
 		return
@@ -215,42 +206,54 @@ func ViewCourse(c *gin.Context) {
 		return
 	}
 	courseCode := c.Param("courseCode")
-	user := getUser(c.GetString("username"))
-	var courses []models.CourseModel
+	username := c.GetString("username")
 
-	if user.Role == "student" {
-		if err := database.DB.Model(&user).Preload("Instructors").
-			Preload("Assignments").
-			Association("Courses").
-			Find(&courses).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "No courses available"})
+	if role == "student" {
+		var user models.UserModel
+
+		// Find the student and preload their enrolled courses
+		if err := database.DB.Model(&user).Preload("Courses").Preload("Courses.Assignments").
+			Where("username = ?", username).Find(&user).Error; err != nil {
 			return
 		}
-		for _, course := range courses {
+		for _, course := range user.Courses {
 			if course.Code == courseCode {
 				c.JSON(http.StatusOK, gin.H{"course": course})
-				return
 			}
 		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not enrolled in the course"})
-		return
+		c.JSON(http.StatusOK, gin.H{"message": "Course not found", "course": courseCode})
+	}
+	if role == "teacher" {
+
+		var user models.UserModel
+		if err := database.DB.Model(&user).Preload("TaughtCourses").Preload("Courses.Assignments").
+			Where("username = ?", username).Find(&user).Error; err != nil {
+			return
+		}
+		for _, course := range user.Courses {
+			if course.Code == courseCode {
+				c.JSON(http.StatusOK, gin.H{"course": course})
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Course not found", "course": courseCode})
 	}
 
-	if user.Role == "teacher" {
-		if err := database.DB.Model(&user).Preload("Students").
+	/*
+		if err := database.DB.Model(&models.CourseModel{}).
 			Preload("Assignments").
-			Association("TaughtCourses").
-			Find(&courses).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "No courses available"})
+			Joins("JOIN user_courses ON user_courses.course_id = courses.id").
+			Joins("JOIN users ON users.id = user_courses.user_id").
+			Where("users.Username = ? AND courses.Code = ?", username, courseCode).
+			First(&course).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
 			return
 		}
-		for _, course := range courses {
-			if course.Code == courseCode {
-				c.JSON(http.StatusOK, gin.H{"course": course})
-				return
-			}
-		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not Teaching this course"})
-		return
+		c.JSON(http.StatusOK, gin.H{"message": "Course viewed", "course": course})
+		return*/
+
+	if role == "admin" {
+		var course models.CourseModel
+		database.DB.Preload("Students").Preload("Instructors").Preload("Assignments").Where("Code =?", courseCode).Find(&course)
+		c.JSON(http.StatusOK, gin.H{"course": course})
 	}
 }

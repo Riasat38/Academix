@@ -5,17 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="efba4aa6-a4f2-4441-9d0e-ce28fd581645" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/api/controllers/assignmentHandler.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api/models/assignmentStructure.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/.env" beforeDir="false" afterPath="$PROJECT_DIR$/api/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/controllers/assignmentHandler.go" beforeDir="false" afterPath="$PROJECT_DIR$/api/controllers/assignmentHandler.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/api/controllers/courseHandler.go" beforeDir="false" afterPath="$PROJECT_DIR$/api/controllers/courseHandler.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api/controllers/userHandler.go" beforeDir="false" afterPath="$PROJECT_DIR$/api/controllers/userHandler.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/models/assignmentStructure.go" beforeDir="false" afterPath="$PROJECT_DIR$/api/models/assignmentStructure.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/api/models/courseModel.go" beforeDir="false" afterPath="$PROJECT_DIR$/api/models/courseModel.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api/models/rolePermission.go" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/api/models/userModel.go" beforeDir="false" afterPath="$PROJECT_DIR$/api/models/userModel.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/api/permissions/roleBasedPermissions.go" beforeDir="false" afterPath="$PROJECT_DIR$/api/permissions/roleBasedPermissions.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/api/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/api/server.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api/test.go" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

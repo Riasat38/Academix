@@ -22,7 +22,7 @@ func main() {
 	}
 	fmt.Println("DB instance:", database.DB)
 	//database.DB.Debug().AutoMigrate(&models.UserModel{}) 	//used when there were issues
-	err := database.DB.AutoMigrate(&models.UserModel{}, &models.CourseModel{}, &models.Assignment{})
+	err := database.DB.AutoMigrate(&models.UserModel{}, &models.CourseModel{}, &models.Assignment{}, &models.AssignmentSubmission{})
 	if err != nil {
 		return
 	}
@@ -63,6 +63,7 @@ func main() {
 		//Assignment
 		authorized.POST("/:courseCode/assignment", controllers.CreateAssignment)
 		authorized.GET("/:courseCode/assignment", controllers.GetAssignments) //get all assignments of a course
+		authorized.POST("/:courseCode/assignment/:assignment_id", controllers.SubmitAssignment)
 
 	}
 
