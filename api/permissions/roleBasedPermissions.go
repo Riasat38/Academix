@@ -13,11 +13,13 @@ func init() {
 			"course":     {"viewAll", "viewOwn", "enroll", "view"},
 			"profile":    {"view", "edit"},
 			"assignment": {"view"},
+			"submission": {"view", "post", "getMarks", "getFeedback"},
 		},
 		"teacher": {
 			"course":     {"viewAll", "viewOwn", "update", "view"},
 			"profile":    {"view", "edit"},
 			"assignment": {"view", "create", "edit", "post"},
+			"submission": {"view", "post", "getMarks", "postMarks", "postfeedback", "delete"},
 		},
 		"admin": {
 			"course":     {"viewAll", "viewOwn", "modify", "create", "delete", "addUser", "view"},

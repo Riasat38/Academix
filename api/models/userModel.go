@@ -14,7 +14,7 @@ type UserModel struct {
 	Role          string                 `gorm:"not null;required"`
 	Courses       []CourseModel          `gorm:"many2many:user_courses;"`
 	TaughtCourses []CourseModel          `gorm:"many2many:instructor_courses;"`
-	Submissions   []AssignmentSubmission `gorm:"foreignKey:StudentID"`
+	Submissions   []AssignmentSubmission `gorm:"foreignKey:StudentID;references:ID"`
 }
 
 func (user *UserModel) CheckPassword(inputPassword string) bool {
