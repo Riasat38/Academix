@@ -219,9 +219,11 @@ func ViewCourse(c *gin.Context) {
 		for _, course := range user.Courses {
 			if course.Code == courseCode {
 				c.JSON(http.StatusOK, gin.H{"course": course})
+				return
 			}
 		}
 		c.JSON(http.StatusOK, gin.H{"message": "Course not found", "course": courseCode})
+		return
 	}
 	if role == "teacher" {
 
@@ -230,12 +232,14 @@ func ViewCourse(c *gin.Context) {
 			Where("username = ?", username).Find(&user).Error; err != nil {
 			return
 		}
-		for _, course := range user.Courses {
+		for _, course := range user.TaughtCourses {
 			if course.Code == courseCode {
 				c.JSON(http.StatusOK, gin.H{"course": course})
+				return
 			}
 		}
 		c.JSON(http.StatusOK, gin.H{"message": "Course not found", "course": courseCode})
+		return
 	}
 
 	/*
@@ -255,5 +259,6 @@ func ViewCourse(c *gin.Context) {
 		var course models.CourseModel
 		database.DB.Preload("Students").Preload("Instructors").Preload("Assignments").Where("Code =?", courseCode).Find(&course)
 		c.JSON(http.StatusOK, gin.H{"course": course})
+		return
 	}
 }
