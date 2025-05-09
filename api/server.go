@@ -55,15 +55,20 @@ func main() {
 		authorized.GET("/course", controllers.ViewAllCourses) //browse
 		authorized.GET("/own-course", controllers.ViewOwnCourses)
 		authorized.GET("/course/:courseCode", controllers.ViewCourse) //viewing a course with details including instructor assignments and everything
-
 		authorized.POST("/enroll-course/:courseCode", controllers.EnrollCourse)
 		authorized.POST("/create-course", controllers.CreateCourse)
 		authorized.POST("/assign-user/:courseCode", controllers.AssignUser) //admin: assigning teacher or
 
 		//Assignment
 		authorized.POST("/:courseCode/assignment", controllers.CreateAssignment)
-		authorized.GET("/:courseCode/assignment", controllers.GetAssignments) //get all assignments of a course
+		authorized.GET("/:courseCode/assignment", controllers.GetAllAssignments) //get all assignments of a course [assignment1,assignment2,assignment3]
+		authorized.GET("/:courseCode/assignment/:assignment_id", controllers.GetAssignment)
+		//submission
 		authorized.POST("/:courseCode/assignment/:assignment_id", controllers.SubmitAssignment)
+		authorized.GET("/:courseCode/assignment/:assignment_id/submissions", controllers.GetAssignmentSubmissions) //teacher getting all the submission for that assignment
+
+		authorized.GET("/submission/:submission_id", controllers.GetStudentSubmissions)     //student seeing his submission for that assignment
+		authorized.PUT("/submissions/:submission_id", controllers.UpdateSubmissionFeedback) //marks update
 
 	}
 

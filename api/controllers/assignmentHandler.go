@@ -50,13 +50,13 @@ func CreateAssignment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Assignment created successfully", "assignment": newAssignment})
 }
 
-func GetAssignments(c *gin.Context) {
+func GetAllAssignments(c *gin.Context) {
 
 	role := c.GetString("role")
 	courseCode := c.Param("courseCode")
 
 	username := c.GetString("username")
-	if !permissions.ValidatePermission(role, "assignment", "view") {
+	if !permissions.ValidatePermission(role, "assignment", "viewAll") {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
 		return
 	}
@@ -109,6 +109,24 @@ func GetAssignmentByID(assignmentID uint) (models.Assignment, error) {
 	}
 
 	return assignment, nil
+}
+func GetAssignment(c *gin.Context) {
+	role := c.GetString("role")
+
+	if !permissions.ValidatePermission(role, "assignment", "view") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
+		return
+	}
+	assignmentID, err := strconv.Atoi(c.Param("assignment_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid assignment id"})
+	}
+	var assignment models.Assignment
+	assignment, err = GetAssignmentByID(uint(assignmentID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch assignment"})
+	}
+	c.JSON(http.StatusOK, gin.H{"assignment": assignment})
 }
 func SubmitAssignment(c *gin.Context) {
 
@@ -181,4 +199,92 @@ func SubmitAssignment(c *gin.Context) {
 		"message":    "Submission successful",
 		"submission": submissionRecord,
 	})
+}
+func GetAssignmentSubmissions(c *gin.Context) {
+
+	role := c.GetString("role")
+	if !permissions.ValidatePermission(role, "submission", "viewAll") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
+		return
+	}
+
+	assignmentIDStr := c.Param("assignment_id")
+	assignmentID, err := strconv.ParseUint(assignmentIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid assignment ID"})
+		return
+	}
+
+	var submissions []models.AssignmentSubmission
+	if err := database.DB.Preload("Student").
+		Where("assignment_id = ?", uint(assignmentID)).
+		Find(&submissions).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch submissions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"submissions": submissions})
+}
+func UpdateSubmissionFeedback(c *gin.Context) {
+	// Only teachers should have access
+	role := c.GetString("role")
+	if !permissions.ValidatePermission(role, "submission", "postMarks:Feedback") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
+		return
+	}
+
+	submissionIDStr := c.Param("submission_id")
+	submissionID, err := strconv.ParseUint(submissionIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid submission ID"})
+		return
+	}
+
+	var input struct {
+		Marks    int     `json:"marks"`
+		Feedback *string `json:"feedback"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	var submission models.AssignmentSubmission
+	if err := database.DB.First(&submission, uint(submissionID)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Submission not found"})
+		return
+	}
+
+	submission.Marks = &input.Marks
+	submission.Feedback = input.Feedback
+	if err := database.DB.Save(&submission).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to post marks/feedback"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"submission": submission})
+}
+
+func GetStudentSubmissions(c *gin.Context) {
+
+	role := c.GetString("role")
+	if !permissions.ValidatePermission(role, "submission", "getMarks:Feedback") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
+		return
+	}
+
+	//username := c.GetString("username")
+	submissionID, err := strconv.Atoi(c.Param("submission_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid submission ID"})
+	}
+	var submission models.AssignmentSubmission
+	if err := database.DB.Preload("Student").
+		Where("id = ? ", submissionID).
+		First(&submission).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch student data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"submission": submission})
 }

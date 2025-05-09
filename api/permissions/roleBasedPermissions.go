@@ -12,20 +12,21 @@ func init() {
 		"student": {
 			"course":     {"viewAll", "viewOwn", "enroll", "view"},
 			"profile":    {"view", "edit"},
-			"assignment": {"view"},
-			"submission": {"view", "post", "getMarks", "getFeedback"},
+			"assignment": {"view", "viewAll"},
+			"submission": {"view", "post", "getMarks:Feedback"},
 		},
 		"teacher": {
 			"course":     {"viewAll", "viewOwn", "update", "view"},
 			"profile":    {"view", "edit"},
-			"assignment": {"view", "create", "edit", "post"},
-			"submission": {"view", "post", "getMarks", "postMarks", "postfeedback", "delete"},
+			"assignment": {"view", "create", "edit", "post", "delete"},
+			"submission": {"viewAll", "post", "viewMarks", "postMarks:Feedback", "delete"},
 		},
 		"admin": {
 			"course":     {"viewAll", "viewOwn", "modify", "create", "delete", "addUser", "view"},
 			"profile":    {"view", "edit", "delete"},
 			"user":       {"view", "edit", "delete"},
-			"assignment": {"view", "create", "edit", "post"},
+			"assignment": {"view", "viewAll", "create", "edit", "post", "delete"},
+			"submission": {"view", "viewAll", "post", "getMarks:Feedback"},
 		},
 	}
 }
