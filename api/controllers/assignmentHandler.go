@@ -61,20 +61,21 @@ func GetAllAssignments(c *gin.Context) {
 	}
 
 	currentTime := time.Now()
+	fmt.Println("currentTime", currentTime)
 	var assignments []models.Assignment
 	var courses []models.CourseModel
 
 	if role == "student" {
 		courses = GetStudentCourses(username)
-		fmt.Println(courses)
 		for _, course := range courses {
 			if course.Code == courseCode {
 				if err := database.DB.Where("course_code =? AND publish_time <= ?", courseCode, currentTime).Find(&assignments).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch assignments"})
 					return
 				}
+				break
 			}
-			break
+
 		}
 	}
 	if role == "teacher" {

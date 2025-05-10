@@ -12,7 +12,7 @@ type UserModel struct {
 	Email         string                 `gorm:"unique;required"`
 	Password      string                 `gorm:"not null;required" json:"-"`
 	Role          string                 `gorm:"not null;required"`
-	Courses       []CourseModel          `gorm:"many2many:user_courses;"`
+	Courses       []CourseModel          `gorm:"many2many:user_courses;constraint:OnDelete:CASCADE"`
 	TaughtCourses []CourseModel          `gorm:"many2many:instructor_courses;"`
 	Submissions   []AssignmentSubmission `gorm:"foreignKey:StudentID;references:ID"`
 }
