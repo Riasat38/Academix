@@ -12,6 +12,7 @@ type Assignment struct {
 	Course       CourseModel `gorm:"foreignKey:CourseCode;references:Code;constraint:OnDelete:CASCADE"`
 	Instructions *string     `gorm:"type:text;default:null"`
 	PublishTime  *time.Time  `gorm:"default:null"`
+	Deadline     *time.Time  `gorm:"not null"`
 }
 type AssignmentSubmission struct {
 	gorm.Model              //createdAt is automically there for submission time

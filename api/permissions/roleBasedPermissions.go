@@ -16,9 +16,9 @@ func init() {
 			"submission": {"view", "post", "getMarks:Feedback"},
 		},
 		"teacher": {
-			"course":     {"viewAll", "viewOwn", "update", "view"},
+			"course":     {"viewAll", "viewOwn", "view"},
 			"profile":    {"view", "edit"},
-			"assignment": {"view", "create", "edit", "post", "delete"},
+			"assignment": {"view", "viewAll", "create", "edit", "post", "delete"},
 			"submission": {"viewAll", "post", "viewMarks", "postMarks:Feedback", "delete"},
 		},
 		"admin": {

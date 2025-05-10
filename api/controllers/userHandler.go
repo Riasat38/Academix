@@ -4,6 +4,7 @@ import (
 	"academix/auth"
 	database "academix/config"
 	"academix/models"
+	"academix/permissions"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -107,6 +108,30 @@ func LogIn(c *gin.Context) {
 
 }
 
+func EditProfile(c *gin.Context) {
+	username := c.GetString("username")
+	role := c.GetString("role")
+	if !permissions.ValidatePermission(role, "profile", "edit") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
+		return
+	}
+	type Input struct {
+		Email    *string `json:"email"`
+		Password *string `json:"password"`
+	}
+	var input Input
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	var user models.UserModel
+	if err := database.DB.First(&user, username).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+	}
+
+}
+
 func Logout(c *gin.Context) {
 	// Remove the token from the browser storage
 	c.SetCookie("token", "", -1, "/", "academix.com", false, true) // Expire token
@@ -114,4 +139,5 @@ func Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Logout successful",
 	})
+	return
 }

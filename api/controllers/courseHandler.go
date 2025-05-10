@@ -142,61 +142,6 @@ func CreateCourse(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Course created", "course": course})
 }
 
-func AssignUser(c *gin.Context) {
-
-	role := c.GetString("role")
-
-	if !permissions.ValidatePermission(role, "course", "addUser") {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
-		return
-	}
-
-	type AssignUserRequest struct {
-		AssignableUsername string `json:"assignableUsername"`
-	}
-
-	var request AssignUserRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-		return
-	}
-
-	assignableUsername := request.AssignableUsername
-
-	courseCode := c.Param("courseCode")
-	var course models.CourseModel
-
-	if err := database.DB.Preload("Students").Preload("Instructors").Where("Code = ?", courseCode).First(&course).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
-		return
-	}
-
-	user := getUser(assignableUsername)
-	if user.Role == "student" {
-		err := database.DB.Model(&course).Association("Students").Append(&user)
-		if err != nil {
-			return
-		}
-		err = database.DB.Model(&user).Association("Courses").Append(&course)
-		if err != nil {
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "Course assigned to student", "course": course})
-
-	} else if user.Role == "teacher" {
-		err := database.DB.Model(&course).Association("Instructors").Append(&user)
-		if err != nil {
-			return
-		}
-		err = database.DB.Model(&user).Association("TaughtCourses").Append(&course)
-		if err != nil {
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "Instructors assigned", "course": course})
-	}
-
-}
-
 func ViewCourse(c *gin.Context) {
 
 	role := c.GetString("role")
@@ -241,24 +186,53 @@ func ViewCourse(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Course not found", "course": courseCode})
 		return
 	}
-
-	/*
-		if err := database.DB.Model(&models.CourseModel{}).
-			Preload("Assignments").
-			Joins("JOIN user_courses ON user_courses.course_id = courses.id").
-			Joins("JOIN users ON users.id = user_courses.user_id").
-			Where("users.Username = ? AND courses.Code = ?", username, courseCode).
-			First(&course).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "Course viewed", "course": course})
-		return*/
-
 	if role == "admin" {
 		var course models.CourseModel
 		database.DB.Preload("Students").Preload("Instructors").Preload("Assignments").Where("Code =?", courseCode).Find(&course)
 		c.JSON(http.StatusOK, gin.H{"course": course})
 		return
 	}
+}
+func EditCourse(c *gin.Context) {
+
+	role := c.GetString("role")
+	if !permissions.ValidatePermission(role, "course", "modify") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
+		return
+	}
+	courseCode := c.Param("courseCode")
+
+	var course models.CourseModel
+	if err := database.DB.Where("code = ?", courseCode).First(&course).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
+		return
+	}
+	var input struct {
+		Code        *string `form:"code"`
+		Title       *string `json:"title"`
+		Description *string `json:"description"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	if input.Code != nil {
+		course.Code = *input.Code
+	}
+	if input.Title != nil {
+		course.Title = *input.Title
+	}
+	if input.Description != nil {
+		course.Description = *input.Description
+	}
+
+	if err := database.DB.Save(&course).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update course"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Course updated successfully",
+		"course":  course,
+	})
 }

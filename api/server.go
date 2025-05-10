@@ -31,7 +31,7 @@ func main() {
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},                                       // Specify allowed origins
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},            // HTTP methods allowed
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // HTTP methods allowed
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"}, // Headers allowed
 		ExposeHeaders:    []string{"Content-Length"},                          // Headers exposed to frontend
 		AllowCredentials: true,                                                // Allow cookies/session credentials
@@ -57,12 +57,22 @@ func main() {
 		authorized.GET("/course/:courseCode", controllers.ViewCourse) //viewing a course with details including instructor assignments and everything
 		authorized.POST("/enroll-course/:courseCode", controllers.EnrollCourse)
 		authorized.POST("/create-course", controllers.CreateCourse)
-		authorized.POST("/assign-user/:courseCode", controllers.AssignUser) //admin: assigning teacher or
+		authorized.PUT("/course/:courseCode", controllers.EditCourse)
+
+		adminGroup := authorized.Group("admin")
+		{
+			adminGroup.GET("/student-list", controllers.GetStudentList)
+			adminGroup.GET("/teacher-list", controllers.GetTeachersList)
+			adminGroup.POST("/assign-user/:courseCode", controllers.AssignUserToCourse) //admin: assigning teacher or student
+			adminGroup.DELETE("/remove-user/:courseCode", controllers.RemoveUserFromCourse)
+		}
 
 		//Assignment
 		authorized.POST("/:courseCode/assignment", controllers.CreateAssignment)
-		authorized.GET("/:courseCode/assignment", controllers.GetAllAssignments) //get all assignments of a course [assignment1,assignment2,assignment3]
-		authorized.GET("/:courseCode/assignment/:assignment_id", controllers.GetAssignment)
+		authorized.GET("/:courseCode/assignments", controllers.GetAllAssignments)            //get all assignments of a course [assignment1,assignment2,assignment3]
+		authorized.GET("/:courseCode/assignments/:assignment_id", controllers.GetAssignment) //one assignment
+		authorized.PUT("/:courseCode/assignments/:assignment_id", controllers.UpdateAssignment)
+		authorized.DELETE("/:courseCode/assignments/:assignment_id", controllers.DeleteAssignment)
 		//submission
 		authorized.POST("/:courseCode/assignment/:assignment_id", controllers.SubmitAssignment)
 		authorized.GET("/:courseCode/assignment/:assignment_id/submissions", controllers.GetAssignmentSubmissions) //teacher getting all the submission for that assignment
