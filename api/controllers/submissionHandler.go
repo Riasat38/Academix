@@ -4,6 +4,7 @@ import (
 	database "academix/config"
 	"academix/models"
 	"academix/permissions"
+	"encoding/base64"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -39,7 +40,6 @@ func SubmitAssignment(c *gin.Context) {
 		return
 	}
 
-	// allow only PDF and Word documents (.pdf, .doc, .docx)
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file format"})
@@ -51,7 +51,6 @@ func SubmitAssignment(c *gin.Context) {
 		return
 	}
 
-	// Define the upload directory and create it if it doesn't exist.
 	uploadDir := "uploads/assignments"
 	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
 		if errDir := os.MkdirAll(uploadDir, 0755); errDir != nil {
@@ -74,9 +73,7 @@ func SubmitAssignment(c *gin.Context) {
 		Submission:   filePath,
 	}
 
-	// Insert the record into the database.
 	if err := database.DB.Create(&submissionRecord).Error; err != nil {
-		// Optionally, remove the file if DB insertion fails to avoid orphaned files.
 		err := os.Remove(filePath)
 		if err != nil {
 			return
@@ -112,8 +109,20 @@ func GetAssignmentSubmissions(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch submissions"})
 		return
 	}
+	for i, sub := range submissions {
+		if sub.Submission != "" {
+			content, err := os.ReadFile(sub.Submission)
+			if err == nil {
+				submissions[i].FileContent = base64.StdEncoding.EncodeToString(content)
 
+			} else {
+				submissions[i].FileContent = ""
+			}
+		}
+
+	}
 	c.JSON(http.StatusOK, gin.H{"submissions": submissions})
+	return
 }
 func UpdateSubmissionFeedback(c *gin.Context) {
 
@@ -174,6 +183,15 @@ func GetStudentSubmissions(c *gin.Context) {
 		First(&submission).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch student data"})
 		return
+	}
+	if submission.Submission != "" {
+		content, err := os.ReadFile(submission.Submission)
+		if err != nil {
+			// Log or handle the error as needed; here we set empty content.
+			submission.FileContent = ""
+		} else {
+			submission.FileContent = base64.StdEncoding.EncodeToString(content)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"submission": submission})

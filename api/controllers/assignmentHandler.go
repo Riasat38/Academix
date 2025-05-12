@@ -4,12 +4,24 @@ import (
 	database "academix/config"
 	"academix/models"
 	"academix/permissions"
+	"encoding/base64"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
+
+func parseTime(timeStr string) (time.Time, error) {
+	dt, err := time.Parse(time.RFC3339Nano, timeStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse time %q: %w", timeStr, err)
+	}
+	return dt, nil
+}
 
 func CreateAssignment(c *gin.Context) {
 	//username := c.GetString("username")
@@ -26,26 +38,60 @@ func CreateAssignment(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
 		return
 	}
+	serialStr := c.PostForm("serial")
+	instruction := c.PostForm("instruction")
+	publishTimeStr := c.PostForm("publishTime")
+	deadlineStr := c.PostForm("deadline")
 
-	var input struct {
-		Serial      int        `json:"serial"`
-		Instruction *string    `json:"instruction"`
-		PublishTime *time.Time `json:"publishTime"` // Time when assignment becomes visible
-		Deadline    *time.Time `json:"deadline"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+	serial, err := strconv.Atoi(serialStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid serial value"})
 		return
 	}
-	newAssignment := models.Assignment{
-		Serial:       input.Serial,
-		CourseCode:   course.Code,
-		Instructions: input.Instruction,
-		PublishTime:  input.PublishTime,
-		Deadline:     input.Deadline,
+
+	publishTime, err := parseTime(publishTimeStr)
+	deadline, err := parseTime(deadlineStr)
+
+	questionFile, err := c.FormFile("question")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Question file not provided"})
+		return
 	}
-	database.DB.Create(&newAssignment)
+
+	// Only allow PDF and Word documents.
+	ext := strings.ToLower(filepath.Ext(questionFile.Filename))
+	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file format for question"})
+		return
+	}
+
+	uploadDir := "uploads/assignment_questions"
+	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+		if errDir := os.MkdirAll(uploadDir, 0755); errDir != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create upload directory"})
+			return
+		}
+	}
+	filename := fmt.Sprintf("%s_Assignment%d_question_%s", course.Code, serial, ext)
+	filePath := filepath.Join(uploadDir, filename)
+	if err := c.SaveUploadedFile(questionFile, filePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save question file"})
+		return
+	}
+
+	newAssignment := models.Assignment{
+		Serial:       serial,
+		CourseCode:   course.Code,
+		Instructions: &instruction,
+		PublishTime:  &publishTime,
+		Deadline:     &deadline,
+		Question:     filePath,
+	}
+	if err := database.DB.Create(&newAssignment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create assignment"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Assignment created successfully", "assignment": newAssignment})
 }
 
@@ -118,15 +164,34 @@ func GetAssignment(c *gin.Context) {
 		return
 	}
 	assignmentID, err := strconv.Atoi(c.Param("assignment_id"))
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid assignment id"})
 	}
+
 	var assignment models.Assignment
 	assignment, err = GetAssignmentByID(uint(assignmentID))
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch assignment"})
 	}
-	c.JSON(http.StatusOK, gin.H{"assignment": assignment})
+
+	var encodedQuestion string
+	if assignment.Question != "" {
+		// Read the file content from disk.
+		fileContent, err := os.ReadFile(assignment.Question)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read question file"})
+			return
+		}
+		encodedQuestion = base64.StdEncoding.EncodeToString(fileContent)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"assignment":    assignment,
+		"question_file": encodedQuestion,
+	})
+
 }
 
 func UpdateAssignment(c *gin.Context) {
@@ -173,6 +238,33 @@ func UpdateAssignment(c *gin.Context) {
 	}
 	if input.Deadline != nil {
 		assignment.Deadline = input.Deadline
+	}
+
+	questionFile, fileErr := c.FormFile("question")
+	if fileErr == nil {
+		// Validate file extension.
+		ext := strings.ToLower(filepath.Ext(questionFile.Filename))
+		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file format for question"})
+			return
+		}
+
+		uploadDir := "uploads/assignment_questions"
+		if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+			if errDir := os.MkdirAll(uploadDir, 0755); errDir != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create upload directory"})
+				return
+			}
+		}
+
+		filename := fmt.Sprintf("%s_Assignment%d_question_%s", assignment.CourseCode, assignment.Serial, ext)
+		filePath := filepath.Join(uploadDir, filename)
+
+		if err := c.SaveUploadedFile(questionFile, filePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save updated question file"})
+			return
+		}
+		assignment.Question = filePath
 	}
 
 	if err := database.DB.Save(&assignment).Error; err != nil {

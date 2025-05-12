@@ -10,8 +10,9 @@ type Assignment struct {
 	Serial       int
 	CourseCode   string      `gorm:"column:course_code;not null"` // Foreign Key
 	Course       CourseModel `gorm:"foreignKey:CourseCode;references:Code;constraint:OnDelete:CASCADE"`
+	Question     string      `gorm:"type:varchar(255)"`
 	Instructions *string     `gorm:"type:text;default:null"`
-	PublishTime  *time.Time  `gorm:"default:null"`
+	PublishTime  *time.Time  `gorm:"not null"`
 	Deadline     *time.Time  `gorm:"not null"`
 }
 type AssignmentSubmission struct {
@@ -23,5 +24,5 @@ type AssignmentSubmission struct {
 	Submission   string     `gorm:"type:varchar(255)"`      // File path or URL
 	Marks        *int       `gorm:"default:null"`           // Nullable marks
 	Feedback     *string    `gorm:"type:text;default:null"` // Optional
-
+	FileContent  string     `gorm:"-" json:"file_content,omitempty"`
 }

@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func ShowUser(c *gin.Context) {
@@ -110,26 +111,38 @@ func LogIn(c *gin.Context) {
 
 func EditProfile(c *gin.Context) {
 	username := c.GetString("username")
-	role := c.GetString("role")
-	if !permissions.ValidatePermission(role, "profile", "edit") {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
-		return
+
+	var input struct {
+		Email *string `json:"email"`
 	}
-	type Input struct {
-		Email    *string `json:"email"`
-		Password *string `json:"password"`
-	}
-	var input Input
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
 	var user models.UserModel
-	if err := database.DB.First(&user, username).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
 	}
 
+	if input.Email != nil && *input.Email != "" {
+		// Check if email is already in use
+		var existingUser models.UserModel
+		if err := database.DB.Where("email = ?", *input.Email).First(&existingUser).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Email is already taken"})
+			return
+		}
+		user.Email = *input.Email
+		if err := database.DB.Save(&user).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+			return
+		}
+	}
+	user.Password = ""
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully", "profile": user})
+	return
 }
 
 func Logout(c *gin.Context) {
@@ -140,4 +153,59 @@ func Logout(c *gin.Context) {
 		"message": "Logout successful",
 	})
 	return
+}
+
+func UpdateUserPassword(c *gin.Context) {
+
+	username := c.GetString("username")
+	role := c.GetString("role")
+
+	if !permissions.ValidatePermission(role, "profile", "edit") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Permission"})
+		return
+	}
+
+	var input struct {
+		CurrentPassword string `json:"currentPassword" binding:"required"`
+		NewPassword     string `json:"newPassword"`     // optional: change password request
+		ConfirmPassword string `json:"confirmPassword"` // optional: must match newPassword if provided
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input. Make sure you provide your current password and any new values you want to change."})
+		return
+	}
+	var user models.UserModel
+	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.CurrentPassword)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Current password is incorrect"})
+		return
+	}
+
+	if strings.TrimSpace(input.NewPassword) != "" {
+		if input.NewPassword != input.ConfirmPassword {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "New password and confirmation do not match"})
+			return
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process the new password"})
+			return
+		}
+		user.Password = string(hashedPassword)
+	}
+
+	if err := database.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		return
+	}
+
+	user.Password = ""
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully", "user": user})
 }

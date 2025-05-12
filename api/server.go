@@ -50,6 +50,7 @@ func main() {
 	{ //below will be the protected routes
 		authorized.POST("/logout", controllers.Logout)
 		authorized.GET("/profile", controllers.ShowUser)
+		authorized.PUT("/profile", controllers.EditProfile)
 
 		//Course Routes
 		authorized.GET("/course", controllers.ViewAllCourses) //browse
