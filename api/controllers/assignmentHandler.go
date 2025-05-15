@@ -6,13 +6,14 @@ import (
 	"academix/permissions"
 	"encoding/base64"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func parseTime(timeStr string) (time.Time, error) {
@@ -42,6 +43,7 @@ func CreateAssignment(c *gin.Context) {
 	instruction := c.PostForm("instruction")
 	publishTimeStr := c.PostForm("publishTime")
 	deadlineStr := c.PostForm("deadline")
+	message := c.PostForm("message")
 
 	serial, err := strconv.Atoi(serialStr)
 	if err != nil {
@@ -86,6 +88,7 @@ func CreateAssignment(c *gin.Context) {
 		PublishTime:  &publishTime,
 		Deadline:     &deadline,
 		Question:     filePath,
+		Message:      &message,
 	}
 	if err := database.DB.Create(&newAssignment).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create assignment"})
@@ -93,6 +96,7 @@ func CreateAssignment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Assignment created successfully", "assignment": newAssignment})
+	return
 }
 
 func GetAllAssignments(c *gin.Context) {

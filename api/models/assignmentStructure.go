@@ -14,6 +14,7 @@ type Assignment struct {
 	Instructions *string     `gorm:"type:text;default:null"`
 	PublishTime  *time.Time  `gorm:"not null"`
 	Deadline     *time.Time  `gorm:"not null"`
+	Message 	 *string     `gorm:"type:text;default:null"`
 }
 type AssignmentSubmission struct {
 	gorm.Model              //createdAt is automically there for submission time

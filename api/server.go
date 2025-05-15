@@ -6,11 +6,12 @@ import (
 	"academix/middleware"
 	"academix/models"
 	"fmt"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -30,7 +31,11 @@ func main() {
 	fmt.Println("Migration completed successfully!")
 
 	router.Use(cors.New(cors.Config{
+<<<<<<< Updated upstream
 		AllowOrigins:     []string{"http://localhost:3000"},                                       // Specify allowed origins
+=======
+		AllowOrigins:     []string{"http://localhost:3000"},                   // Specify allowed origins
+>>>>>>> Stashed changes
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // HTTP methods allowed
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"}, // Headers allowed
 		ExposeHeaders:    []string{"Content-Length"},                          // Headers exposed to frontend
